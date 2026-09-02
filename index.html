@@ -308,6 +308,7 @@
               <th class="col-look">Look Venda</th>
               <th>Fornecedor</th>
               <th class="col-qtd">Saldo</th>
+              <th class="col-varejo">Data Compra</th>
               <th class="col-rm"></th>
             </tr>
           </thead>
@@ -369,7 +370,7 @@ function mostrarModulo(nome) {
 function renderProdutos(lista) {
   const tbody = document.getElementById('produtos-body');
   if (lista.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-hint">Nenhum produto encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-hint">Nenhum produto encontrado.</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(p => `
@@ -379,6 +380,7 @@ function renderProdutos(lista) {
       <td><input type="text" class="p-look" value="${(p.look_venda || '').replace(/"/g, '&quot;')}"></td>
       <td>${p.fornecedor || ''}</td>
       <td>${p.saldo_atual}</td>
+      <td>${p.data_compra ? formatarData(p.data_compra) : '—'}</td>
       <td class="col-rm"><button class="btn-secondary" style="padding:6px 10px" onclick="salvarProdutoLinha(this)">Salvar</button></td>
     </tr>
   `).join('');
@@ -401,7 +403,7 @@ function filtrarProdutos() {
 async function carregarProdutos() {
   const resumo = document.getElementById('produtos-resumo');
   const tbody = document.getElementById('produtos-body');
-  tbody.innerHTML = '<tr><td colspan="6" class="empty-hint">Carregando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" class="empty-hint">Carregando...</td></tr>';
 
   try {
     const resp = await fetch(PRODUTOS_URL, {
@@ -415,7 +417,7 @@ async function carregarProdutos() {
 
     const result = await resp.json();
     if (!result.success) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty-hint">' + (result.error || 'Erro ao carregar produtos.') + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-hint">' + (result.error || 'Erro ao carregar produtos.') + '</td></tr>';
       return;
     }
 
@@ -424,7 +426,7 @@ async function carregarProdutos() {
     document.getElementById('produtos-busca').value = '';
     renderProdutos(produtosCache);
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-hint">Erro de conexão: ' + e.message + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-hint">Erro de conexão: ' + e.message + '</td></tr>';
   }
 }
 
@@ -643,6 +645,7 @@ async function carregarRecebimentos() {
           <td>R$ ${formatarMoeda(it.valor_varejo)}</td>
           <td>R$ ${formatarMoeda(it.valor_pix)}</td>
           <td>${it.look_venda || '—'}</td>
+          <td>${it.data_compra ? formatarData(it.data_compra) : '—'}</td>
         </tr>
       `).join('');
 
@@ -658,7 +661,7 @@ async function carregarRecebimentos() {
           <div class="receb-row-detail" id="detalhe-${r.id}">
             <table>
               <thead>
-                <tr><th>SKU</th><th>Descrição</th><th>Qtd</th><th>Custo</th><th>Varejo</th><th>Pix</th><th>Look</th></tr>
+                <tr><th>SKU</th><th>Descrição</th><th>Qtd</th><th>Custo</th><th>Varejo</th><th>Pix</th><th>Look</th><th>Data Compra</th></tr>
               </thead>
               <tbody>${itensHtml}</tbody>
             </table>
