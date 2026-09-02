@@ -209,8 +209,9 @@
             <th class="col-sku">SKU</th>
             <th class="col-desc">Descrição</th>
             <th class="col-qtd">Qtd</th>
-            <th class="col-varejo">Valor Varejo</th>
-            <th class="col-pix">Valor Pix</th>
+            <th class="col-varejo">Custo</th>
+            <th class="col-varejo">Varejo</th>
+            <th class="col-pix">Pix</th>
             <th class="col-look">Look Venda</th>
             <th class="col-rm"></th>
           </tr>
@@ -505,6 +506,48 @@ function logout() {
   showLogin();
 }
 
+const REGRA_PRECO = {
+  embalagem: 13,
+  freteAluguel: 15,
+  taxaCartao: 0.218,
+  descontoPix: 0.05,
+  ajusteCusto: 1.15,
+  margensPorFaixa: { 2: 0.525, 3: 0.575, 4: 0.625, 5: 0.675, 6: 0.725 }
+};
+
+function calcularFaixa(custo) {
+  if (custo < 20) return 1;
+  if (custo < 50) return 2;
+  if (custo < 100) return 3;
+  if (custo < 150) return 4;
+  if (custo < 200) return 5;
+  return 6;
+}
+
+function calcularVarejoPix(custoOriginal) {
+  if (!custoOriginal || custoOriginal <= 0) return { varejo: 0, pix: 0 };
+  const r = REGRA_PRECO;
+  const custo = custoOriginal * r.ajusteCusto;
+  const faixa = calcularFaixa(custo);
+  let varejo;
+  if (faixa === 1) {
+    varejo = Math.round(custo * 3);
+  } else {
+    const margem = r.margensPorFaixa[faixa];
+    varejo = Math.round(((custo + r.embalagem + r.freteAluguel) * (1 + margem)) / (1 - r.taxaCartao));
+  }
+  const pix = faixa === 1 ? varejo : Math.round(varejo * (1 - r.descontoPix));
+  return { varejo, pix };
+}
+
+function recalcularLinha(inputCusto) {
+  const row = inputCusto.closest('tr');
+  const custo = parseFloat(inputCusto.value || '0');
+  const { varejo, pix } = calcularVarejoPix(custo);
+  row.querySelector('.i-varejo').value = varejo || '';
+  row.querySelector('.i-pix').value = pix || '';
+}
+
 function adicionarItem() {
   const tbody = document.getElementById('itens-body');
   const tr = document.createElement('tr');
@@ -512,8 +555,9 @@ function adicionarItem() {
     <td><input type="text" class="i-sku"></td>
     <td><input type="text" class="i-descricao"></td>
     <td><input type="number" class="i-quantidade" value="1" min="1"></td>
-    <td><input type="number" class="i-varejo" step="0.01"></td>
-    <td><input type="number" class="i-pix" step="0.01"></td>
+    <td><input type="number" class="i-custo" step="0.01" oninput="recalcularLinha(this)"></td>
+    <td><input type="number" class="i-varejo" step="0.01" readonly style="background:#f3efe8"></td>
+    <td><input type="number" class="i-pix" step="0.01" readonly style="background:#f3efe8"></td>
     <td><input type="text" class="i-look"></td>
     <td class="col-rm"><button class="btn-remove" onclick="this.closest('tr').remove()">&times;</button></td>
   `;
@@ -530,6 +574,7 @@ function coletarItens() {
       sku,
       descricao: row.querySelector('.i-descricao').value.trim(),
       quantidade: parseInt(row.querySelector('.i-quantidade').value || '0', 10),
+      valor_custo: parseFloat(row.querySelector('.i-custo').value || '0'),
       valor_varejo: parseFloat(row.querySelector('.i-varejo').value || '0'),
       valor_pix: parseFloat(row.querySelector('.i-pix').value || '0'),
       look_venda: row.querySelector('.i-look').value.trim() || null
