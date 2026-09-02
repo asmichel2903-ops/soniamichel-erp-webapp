@@ -250,6 +250,7 @@
         <div style="display:flex; gap:8px; margin-bottom:12px">
           <button id="estoque-tab-venda" class="btn-secondary btn-tab-active" onclick="setEstoqueTab('venda')">Venda Produto</button>
           <button id="estoque-tab-custo" class="btn-secondary" onclick="setEstoqueTab('custo')">Custo Produto</button>
+          <button id="estoque-tab-look" class="btn-secondary" onclick="setEstoqueTab('look')">Look</button>
         </div>
         <div id="estoque-resumo" class="receb-row-sub" style="margin-bottom:10px"></div>
         <div style="overflow-x:auto">
@@ -525,6 +526,7 @@ function setEstoqueTab(tab) {
   estoqueTab = tab;
   document.getElementById('estoque-tab-venda').classList.toggle('btn-tab-active', tab === 'venda');
   document.getElementById('estoque-tab-custo').classList.toggle('btn-tab-active', tab === 'custo');
+  document.getElementById('estoque-tab-look').classList.toggle('btn-tab-active', tab === 'look');
   renderEstoqueThead();
   atualizarResumoEstoque();
   filtrarEstoque();
@@ -532,6 +534,16 @@ function setEstoqueTab(tab) {
 
 function renderEstoqueThead() {
   const thead = document.getElementById('estoque-thead');
+  if (estoqueTab === 'look') {
+    thead.innerHTML = `
+      <tr>
+        <th class="col-look">Look</th>
+        <th class="col-desc">Nome do Produto</th>
+        <th class="col-varejo">Valor de Venda</th>
+      </tr>
+    `;
+    return;
+  }
   const colunasValor = estoqueTab === 'custo'
     ? '<th class="col-varejo">Custo</th>'
     : '<th class="col-varejo">Varejo</th><th class="col-pix">Pix</th>';
@@ -549,9 +561,19 @@ function renderEstoqueThead() {
 
 function renderEstoque(lista) {
   const tbody = document.getElementById('estoque-body');
-  const colspan = estoqueTab === 'custo' ? 6 : 7;
+  const colspan = estoqueTab === 'look' ? 3 : (estoqueTab === 'custo' ? 6 : 7);
   if (lista.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-hint">Nenhum item encontrado.</td></tr>`;
+    return;
+  }
+  if (estoqueTab === 'look') {
+    tbody.innerHTML = lista.map(it => `
+      <tr>
+        <td>${it.look_venda || '—'}</td>
+        <td>${it.descricao || ''}</td>
+        <td>R$ ${formatarMoeda(it.valor_varejo || 0)}</td>
+      </tr>
+    `).join('');
     return;
   }
   tbody.innerHTML = lista.map(it => `
@@ -574,6 +596,9 @@ function atualizarResumoEstoque() {
   if (estoqueTab === 'custo') {
     const totalCusto = estoqueCache.reduce((acc, it) => acc + Number(it.saldo_atual) * Number(it.valor_custo || 0), 0);
     resumo.textContent = `${estoqueCache.length} SKUs · ${totalPecas} peças · custo total imobilizado: R$ ${formatarMoeda(totalCusto)}`;
+  } else if (estoqueTab === 'look') {
+    const totalValorVarejo = estoqueCache.reduce((acc, it) => acc + Number(it.saldo_atual) * Number(it.valor_varejo || 0), 0);
+    resumo.textContent = `${estoqueCache.length} SKUs · valor de venda potencial: R$ ${formatarMoeda(totalValorVarejo)}`;
   } else {
     const totalValorVarejo = estoqueCache.reduce((acc, it) => acc + Number(it.saldo_atual) * Number(it.valor_varejo || 0), 0);
     const totalValorPix = estoqueCache.reduce((acc, it) => acc + Number(it.saldo_atual) * Number(it.valor_pix || 0), 0);
