@@ -175,11 +175,13 @@
 
   <div class="container">
     <nav class="modules">
-      <button class="active">Recebimento</button>
+      <button id="nav-recebimento" class="active" onclick="mostrarModulo('recebimento')">Recebimento</button>
+      <button id="nav-estoque" onclick="mostrarModulo('estoque')">Saldo de Estoque</button>
       <button disabled title="Em breve">Venda de Exposição</button>
       <button disabled title="Em breve">Dashboard</button>
     </nav>
 
+    <div id="modulo-recebimento">
     <div class="card">
       <h3 style="margin-top:0">Novo Recebimento</h3>
       <div class="grid-header">
@@ -230,6 +232,34 @@
       </div>
       <div id="lista-recebimentos"></div>
     </div>
+    </div>
+
+    <div id="modulo-estoque" style="display:none">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:12px;">
+          <h3 style="margin:0">Saldo de Estoque</h3>
+          <input id="estoque-busca" type="text" placeholder="Buscar por SKU, descrição ou look..." style="max-width:280px" oninput="filtrarEstoque()">
+          <button class="btn-secondary" onclick="carregarEstoque()">Atualizar</button>
+        </div>
+        <div id="estoque-resumo" class="receb-row-sub" style="margin-bottom:10px"></div>
+        <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-sku">SKU</th>
+              <th class="col-desc">Descrição</th>
+              <th class="col-qtd">Saldo</th>
+              <th class="col-varejo">Varejo</th>
+              <th class="col-pix">Pix</th>
+              <th class="col-look">Look</th>
+              <th>Fornecedor</th>
+            </tr>
+          </thead>
+          <tbody id="estoque-body"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -261,6 +291,83 @@ const AUTH_LOGIN_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/a
 const RECEBIMENTO_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/recebimento";
 const TROCAR_SENHA_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/auth-trocar-senha";
 const RECEBIMENTOS_LIST_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/recebimentos";
+const ESTOQUE_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/estoque";
+
+let estoqueCache = [];
+
+function mostrarModulo(nome) {
+  document.getElementById('modulo-recebimento').style.display = nome === 'recebimento' ? 'block' : 'none';
+  document.getElementById('modulo-estoque').style.display = nome === 'estoque' ? 'block' : 'none';
+  document.getElementById('nav-recebimento').classList.toggle('active', nome === 'recebimento');
+  document.getElementById('nav-estoque').classList.toggle('active', nome === 'estoque');
+  if (nome === 'estoque' && estoqueCache.length === 0) carregarEstoque();
+}
+
+function renderEstoque(lista) {
+  const tbody = document.getElementById('estoque-body');
+  if (lista.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-hint">Nenhum item encontrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(it => `
+    <tr>
+      <td>${it.sku}</td>
+      <td>${it.descricao || ''}</td>
+      <td>${it.saldo_atual}</td>
+      <td>R$ ${formatarMoeda(it.valor_varejo || 0)}</td>
+      <td>R$ ${formatarMoeda(it.valor_pix || 0)}</td>
+      <td>${it.look_venda || '—'}</td>
+      <td>${it.fornecedor || ''}</td>
+    </tr>
+  `).join('');
+}
+
+function filtrarEstoque() {
+  const termo = document.getElementById('estoque-busca').value.trim().toLowerCase();
+  if (!termo) {
+    renderEstoque(estoqueCache);
+    return;
+  }
+  const filtrado = estoqueCache.filter(it =>
+    (it.sku || '').toLowerCase().includes(termo) ||
+    (it.descricao || '').toLowerCase().includes(termo) ||
+    (it.look_venda || '').toLowerCase().includes(termo)
+  );
+  renderEstoque(filtrado);
+}
+
+async function carregarEstoque() {
+  const resumo = document.getElementById('estoque-resumo');
+  const tbody = document.getElementById('estoque-body');
+  tbody.innerHTML = '<tr><td colspan="7" class="empty-hint">Carregando...</td></tr>';
+
+  try {
+    const resp = await fetch(ESTOQUE_URL, {
+      headers: { 'Authorization': 'Bearer ' + getToken() }
+    });
+
+    if (resp.status === 401) {
+      logout();
+      return;
+    }
+
+    const result = await resp.json();
+    if (!result.success) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-hint">' + (result.error || 'Erro ao carregar estoque.') + '</td></tr>';
+      return;
+    }
+
+    estoqueCache = result.estoque || [];
+    const totalPecas = estoqueCache.reduce((acc, it) => acc + Number(it.saldo_atual), 0);
+    const totalValorVarejo = estoqueCache.reduce((acc, it) => acc + Number(it.saldo_atual) * Number(it.valor_varejo || 0), 0);
+    resumo.textContent = `${estoqueCache.length} SKUs · ${totalPecas} peças · valor de varejo total: R$ ${formatarMoeda(totalValorVarejo)}`;
+
+    document.getElementById('estoque-busca').value = '';
+    renderEstoque(estoqueCache);
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-hint">Erro de conexão: ' + e.message + '</td></tr>';
+  }
+}
 
 function getToken() { return localStorage.getItem('sonia_erp_token'); }
 function getNome() { return localStorage.getItem('sonia_erp_nome'); }
