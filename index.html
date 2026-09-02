@@ -177,6 +177,7 @@
     <nav class="modules">
       <button id="nav-recebimento" class="active" onclick="mostrarModulo('recebimento')">Recebimento</button>
       <button id="nav-estoque" onclick="mostrarModulo('estoque')">Saldo de Estoque</button>
+      <button id="nav-produtos" onclick="mostrarModulo('produtos')">Produtos</button>
       <button disabled title="Em breve">Venda de Exposição</button>
       <button disabled title="Em breve">Dashboard</button>
     </nav>
@@ -263,6 +264,59 @@
         </div>
       </div>
     </div>
+
+    <div id="modulo-produtos" style="display:none">
+      <div class="card">
+        <h3 style="margin-top:0">Novo Produto</h3>
+        <div class="grid-header">
+          <div class="field">
+            <label for="np-sku">SKU</label>
+            <input id="np-sku" type="text">
+          </div>
+          <div class="field">
+            <label for="np-descricao">Descrição</label>
+            <input id="np-descricao" type="text">
+          </div>
+          <div class="field">
+            <label for="np-look">Look Venda</label>
+            <input id="np-look" type="text">
+          </div>
+        </div>
+        <div class="field">
+          <label for="np-fornecedor">Fornecedor (opcional)</label>
+          <input id="np-fornecedor" type="text">
+        </div>
+        <div class="row-actions">
+          <button class="btn-primary" onclick="criarProduto()">Salvar Produto</button>
+        </div>
+        <div id="np-msg" class="msg"></div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:12px;">
+          <h3 style="margin:0">Produtos Cadastrados</h3>
+          <input id="produtos-busca" type="text" placeholder="Buscar por SKU, descrição ou look..." style="max-width:280px" oninput="filtrarProdutos()">
+          <button class="btn-secondary" onclick="carregarProdutos()">Atualizar</button>
+        </div>
+        <div id="produtos-resumo" class="receb-row-sub" style="margin-bottom:10px"></div>
+        <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-sku">SKU</th>
+              <th class="col-desc">Descrição</th>
+              <th class="col-look">Look Venda</th>
+              <th>Fornecedor</th>
+              <th class="col-qtd">Saldo</th>
+              <th class="col-rm"></th>
+            </tr>
+          </thead>
+          <tbody id="produtos-body"></tbody>
+        </table>
+        </div>
+        <div id="produtos-msg" class="msg"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -295,15 +349,167 @@ const RECEBIMENTO_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/
 const TROCAR_SENHA_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/auth-trocar-senha";
 const RECEBIMENTOS_LIST_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/recebimentos";
 const ESTOQUE_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/estoque";
+const PRODUTOS_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/produtos";
+const PRODUTO_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/produto";
 
 let estoqueCache = [];
+let produtosCache = [];
 
 function mostrarModulo(nome) {
   document.getElementById('modulo-recebimento').style.display = nome === 'recebimento' ? 'block' : 'none';
   document.getElementById('modulo-estoque').style.display = nome === 'estoque' ? 'block' : 'none';
+  document.getElementById('modulo-produtos').style.display = nome === 'produtos' ? 'block' : 'none';
   document.getElementById('nav-recebimento').classList.toggle('active', nome === 'recebimento');
   document.getElementById('nav-estoque').classList.toggle('active', nome === 'estoque');
+  document.getElementById('nav-produtos').classList.toggle('active', nome === 'produtos');
   if (nome === 'estoque' && estoqueCache.length === 0) carregarEstoque();
+  if (nome === 'produtos' && produtosCache.length === 0) carregarProdutos();
+}
+
+function renderProdutos(lista) {
+  const tbody = document.getElementById('produtos-body');
+  if (lista.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-hint">Nenhum produto encontrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(p => `
+    <tr data-sku="${p.sku}">
+      <td>${p.sku}</td>
+      <td><input type="text" class="p-descricao" value="${(p.descricao || '').replace(/"/g, '&quot;')}"></td>
+      <td><input type="text" class="p-look" value="${(p.look_venda || '').replace(/"/g, '&quot;')}"></td>
+      <td>${p.fornecedor || ''}</td>
+      <td>${p.saldo_atual}</td>
+      <td class="col-rm"><button class="btn-secondary" style="padding:6px 10px" onclick="salvarProdutoLinha(this)">Salvar</button></td>
+    </tr>
+  `).join('');
+}
+
+function filtrarProdutos() {
+  const termo = document.getElementById('produtos-busca').value.trim().toLowerCase();
+  if (!termo) {
+    renderProdutos(produtosCache);
+    return;
+  }
+  const filtrado = produtosCache.filter(p =>
+    (p.sku || '').toLowerCase().includes(termo) ||
+    (p.descricao || '').toLowerCase().includes(termo) ||
+    (p.look_venda || '').toLowerCase().includes(termo)
+  );
+  renderProdutos(filtrado);
+}
+
+async function carregarProdutos() {
+  const resumo = document.getElementById('produtos-resumo');
+  const tbody = document.getElementById('produtos-body');
+  tbody.innerHTML = '<tr><td colspan="6" class="empty-hint">Carregando...</td></tr>';
+
+  try {
+    const resp = await fetch(PRODUTOS_URL, {
+      headers: { 'Authorization': 'Bearer ' + getToken() }
+    });
+
+    if (resp.status === 401) {
+      logout();
+      return;
+    }
+
+    const result = await resp.json();
+    if (!result.success) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-hint">' + (result.error || 'Erro ao carregar produtos.') + '</td></tr>';
+      return;
+    }
+
+    produtosCache = result.produtos || [];
+    resumo.textContent = `${produtosCache.length} produtos cadastrados`;
+    document.getElementById('produtos-busca').value = '';
+    renderProdutos(produtosCache);
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-hint">Erro de conexão: ' + e.message + '</td></tr>';
+  }
+}
+
+async function salvarProdutoLinha(botao) {
+  const row = botao.closest('tr');
+  const sku = row.dataset.sku;
+  const descricao = row.querySelector('.p-descricao').value.trim();
+  const look_venda = row.querySelector('.p-look').value.trim();
+  const msg = document.getElementById('produtos-msg');
+  msg.className = 'msg';
+  msg.textContent = '';
+
+  try {
+    const resp = await fetch(PRODUTO_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+      body: JSON.stringify({ sku, descricao, look_venda })
+    });
+
+    if (resp.status === 401) {
+      logout();
+      return;
+    }
+
+    const result = await resp.json();
+    if (result.success) {
+      msg.className = 'msg ok';
+      msg.textContent = `Produto ${sku} atualizado.`;
+      const item = produtosCache.find(p => p.sku === sku);
+      if (item) { item.descricao = descricao; item.look_venda = look_venda; }
+    } else {
+      msg.className = 'msg err';
+      msg.textContent = result.error || 'Erro ao salvar produto.';
+    }
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'Erro de conexão: ' + e.message;
+  }
+}
+
+async function criarProduto() {
+  const msg = document.getElementById('np-msg');
+  msg.className = 'msg';
+  msg.textContent = '';
+
+  const sku = document.getElementById('np-sku').value.trim();
+  const descricao = document.getElementById('np-descricao').value.trim();
+  const look_venda = document.getElementById('np-look').value.trim();
+  const fornecedor = document.getElementById('np-fornecedor').value.trim();
+
+  if (!sku) {
+    msg.className = 'msg err';
+    msg.textContent = 'Informe o SKU.';
+    return;
+  }
+
+  try {
+    const resp = await fetch(PRODUTO_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+      body: JSON.stringify({ sku, descricao, look_venda, fornecedor })
+    });
+
+    if (resp.status === 401) {
+      logout();
+      return;
+    }
+
+    const result = await resp.json();
+    if (result.success) {
+      msg.className = 'msg ok';
+      msg.textContent = `Produto ${result.sku} salvo.`;
+      document.getElementById('np-sku').value = '';
+      document.getElementById('np-descricao').value = '';
+      document.getElementById('np-look').value = '';
+      document.getElementById('np-fornecedor').value = '';
+      carregarProdutos();
+    } else {
+      msg.className = 'msg err';
+      msg.textContent = result.error || 'Erro ao salvar produto.';
+    }
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'Erro de conexão: ' + e.message;
+  }
 }
 
 function renderEstoque(lista) {
