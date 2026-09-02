@@ -425,11 +425,13 @@ async function carregarRecebimentos() {
     container.innerHTML = recebimentos.map(r => {
       const itens = r.itens || [];
       const totalPecas = itens.reduce((acc, it) => acc + it.quantidade, 0);
+      const totalCusto = itens.reduce((acc, it) => acc + (Number(it.valor_custo) || 0) * it.quantidade, 0);
       const itensHtml = itens.map(it => `
         <tr>
           <td>${it.sku}</td>
           <td>${it.descricao || ''}</td>
           <td>${it.quantidade}</td>
+          <td>${it.valor_custo != null ? 'R$ ' + formatarMoeda(it.valor_custo) : '—'}</td>
           <td>R$ ${formatarMoeda(it.valor_varejo)}</td>
           <td>R$ ${formatarMoeda(it.valor_pix)}</td>
           <td>${it.look_venda || '—'}</td>
@@ -441,14 +443,14 @@ async function carregarRecebimentos() {
           <div class="receb-row-header" onclick="toggleRecebimento(${r.id})">
             <div>
               <div class="receb-row-title">#${r.id} — ${r.fornecedor} — Doc. ${r.numero_documento}</div>
-              <div class="receb-row-sub">${formatarData(r.data)} · ${itens.length} SKUs · ${totalPecas} peças${r.criado_por ? ' · por ' + r.criado_por : ''}</div>
+              <div class="receb-row-sub">${formatarData(r.data)} · ${itens.length} SKUs · ${totalPecas} peças · custo total R$ ${formatarMoeda(totalCusto)}${r.criado_por ? ' · por ' + r.criado_por : ''}</div>
             </div>
             <div class="receb-row-meta">${r.observacao ? r.observacao : ''}</div>
           </div>
           <div class="receb-row-detail" id="detalhe-${r.id}">
             <table>
               <thead>
-                <tr><th>SKU</th><th>Descrição</th><th>Qtd</th><th>Varejo</th><th>Pix</th><th>Look</th></tr>
+                <tr><th>SKU</th><th>Descrição</th><th>Qtd</th><th>Custo</th><th>Varejo</th><th>Pix</th><th>Look</th></tr>
               </thead>
               <tbody>${itensHtml}</tbody>
             </table>
