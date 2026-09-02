@@ -219,6 +219,8 @@
         <tbody id="itens-body"></tbody>
       </table>
 
+      <div class="receb-row-sub" id="receb-total" style="margin-top:10px"></div>
+
       <div class="row-actions">
         <button class="btn-secondary" onclick="adicionarItem()">+ Adicionar item</button>
         <button class="btn-primary" onclick="salvarRecebimento()">Salvar Recebimento</button>
@@ -548,6 +550,22 @@ function recalcularLinha(inputCusto) {
   const { varejo, pix } = calcularVarejoPix(custo);
   row.querySelector('.i-varejo').value = varejo || '';
   row.querySelector('.i-pix').value = pix || '';
+  atualizarTotalRecebimento();
+}
+
+function atualizarTotalRecebimento() {
+  const totalEl = document.getElementById('receb-total');
+  const rows = document.querySelectorAll('#itens-body tr');
+  let totalPecas = 0, totalCusto = 0, totalVarejo = 0;
+  for (const row of rows) {
+    const qtd = parseFloat(row.querySelector('.i-quantidade').value || '0');
+    const custo = parseFloat(row.querySelector('.i-custo').value || '0');
+    const varejo = parseFloat(row.querySelector('.i-varejo').value || '0');
+    totalPecas += qtd;
+    totalCusto += qtd * custo;
+    totalVarejo += qtd * varejo;
+  }
+  totalEl.textContent = `${rows.length} SKUs · ${totalPecas} peças · custo total R$ ${formatarMoeda(totalCusto)} · varejo total R$ ${formatarMoeda(totalVarejo)}`;
 }
 
 function adicionarItem() {
@@ -556,14 +574,15 @@ function adicionarItem() {
   tr.innerHTML = `
     <td><input type="text" class="i-sku"></td>
     <td><input type="text" class="i-descricao"></td>
-    <td><input type="number" class="i-quantidade" value="1" min="1"></td>
+    <td><input type="number" class="i-quantidade" value="1" min="1" oninput="atualizarTotalRecebimento()"></td>
     <td><input type="number" class="i-custo" step="0.01" oninput="recalcularLinha(this)"></td>
     <td><input type="number" class="i-varejo" step="0.01" readonly style="background:#f3efe8"></td>
     <td><input type="number" class="i-pix" step="0.01" readonly style="background:#f3efe8"></td>
     <td><input type="text" class="i-look"></td>
-    <td class="col-rm"><button class="btn-remove" onclick="this.closest('tr').remove()">&times;</button></td>
+    <td class="col-rm"><button class="btn-remove" onclick="this.closest('tr').remove(); atualizarTotalRecebimento();">&times;</button></td>
   `;
   tbody.appendChild(tr);
+  atualizarTotalRecebimento();
 }
 
 function coletarItens() {
