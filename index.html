@@ -539,7 +539,8 @@ function renderEstoqueThead() {
       <tr>
         <th class="col-look">Look</th>
         <th class="col-desc">Nome do Produto</th>
-        <th class="col-varejo">Valor de Venda</th>
+        <th class="col-varejo">Varejo</th>
+        <th class="col-pix">Pix</th>
       </tr>
     `;
     return;
@@ -561,7 +562,7 @@ function renderEstoqueThead() {
 
 function renderEstoque(lista) {
   const tbody = document.getElementById('estoque-body');
-  const colspan = estoqueTab === 'look' ? 3 : (estoqueTab === 'custo' ? 6 : 7);
+  const colspan = estoqueTab === 'look' ? 4 : (estoqueTab === 'custo' ? 6 : 7);
   if (lista.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-hint">Nenhum item encontrado.</td></tr>`;
     return;
@@ -572,6 +573,7 @@ function renderEstoque(lista) {
         <td>${it.look_venda || '—'}</td>
         <td>${it.descricao || ''}</td>
         <td>R$ ${formatarMoeda(it.valor_varejo || 0)}</td>
+        <td>R$ ${formatarMoeda(it.valor_pix || 0)}</td>
       </tr>
     `).join('');
     return;
@@ -598,7 +600,8 @@ function atualizarResumoEstoque() {
     resumo.textContent = `${estoqueCache.length} SKUs · ${totalPecas} peças · custo total imobilizado: R$ ${formatarMoeda(totalCusto)}`;
   } else if (estoqueTab === 'look') {
     const totalValorVarejo = estoqueCache.reduce((acc, it) => acc + Number(it.saldo_atual) * Number(it.valor_varejo || 0), 0);
-    resumo.textContent = `${estoqueCache.length} SKUs · valor de venda potencial: R$ ${formatarMoeda(totalValorVarejo)}`;
+    const totalValorPix = estoqueCache.reduce((acc, it) => acc + Number(it.saldo_atual) * Number(it.valor_pix || 0), 0);
+    resumo.textContent = `${estoqueCache.length} SKUs · valor de venda potencial: R$ ${formatarMoeda(totalValorVarejo)} (varejo) · R$ ${formatarMoeda(totalValorPix)} (pix)`;
   } else {
     const totalValorVarejo = estoqueCache.reduce((acc, it) => acc + Number(it.saldo_atual) * Number(it.valor_varejo || 0), 0);
     const totalValorPix = estoqueCache.reduce((acc, it) => acc + Number(it.saldo_atual) * Number(it.valor_pix || 0), 0);
