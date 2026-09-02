@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini ERP - Sonia Michel Semijoias</title>
+<style>
+  :root {
+    --bg: #f7f5f2;
+    --card: #ffffff;
+    --ink: #2a2420;
+    --ink-soft: #6b625b;
+    --border: #e4ddd4;
+    --accent: #a8763e;
+    --accent-dark: #8a5f30;
+    --ok: #2f7a4f;
+    --err: #b3402f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 { font-size: 1.1rem; margin: 0; font-weight: 600; }
+  header .user-info { font-size: 0.85rem; color: var(--ink-soft); display: flex; align-items: center; gap: 12px; }
+  button.link { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.85rem; padding: 0; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  label { display: block; font-size: 0.8rem; color: var(--ink-soft); margin-bottom: 4px; }
+  input, select {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: #fff;
+    color: var(--ink);
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  .field { margin-bottom: 14px; }
+  .grid-header {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th { text-align: left; font-size: 0.75rem; color: var(--ink-soft); padding: 6px 6px; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 6px; vertical-align: top; }
+  td input { padding: 7px 8px; font-size: 0.85rem; }
+  .col-sku { width: 15%; } .col-desc { width: 30%; } .col-qtd { width: 8%; }
+  .col-varejo { width: 12%; } .col-pix { width: 12%; } .col-look { width: 13%; } .col-rm { width: 5%; text-align: center; }
+
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    padding: 10px 16px;
+    font-weight: 500;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-secondary { background: #eee6db; color: var(--ink); }
+  .btn-secondary:hover { background: #e3d8c8; }
+  .btn-remove { background: none; color: var(--err); font-size: 1.1rem; padding: 2px 8px; }
+
+  .row-actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; }
+
+  .msg { padding: 12px 14px; border-radius: 6px; font-size: 0.88rem; margin-top: 14px; display: none; }
+  .msg.ok { background: #e6f2ea; color: var(--ok); display: block; }
+  .msg.err { background: #f7e6e3; color: var(--err); display: block; }
+
+  #view-login { max-width: 340px; margin: 80px auto; }
+  #view-login h2 { margin-top: 0; }
+
+  #view-app { display: none; }
+
+  nav.modules { display: flex; gap: 8px; margin-bottom: 20px; }
+  nav.modules button {
+    background: var(--card); border: 1px solid var(--border); color: var(--ink-soft);
+  }
+  nav.modules button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  nav.modules button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .hint { font-size: 0.78rem; color: var(--ink-soft); margin-top: 4px; }
+
+  .receb-row {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .receb-row-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    cursor: pointer;
+    background: #fbf9f6;
+  }
+  .receb-row-header:hover { background: #f5f0e9; }
+  .receb-row-title { font-weight: 600; font-size: 0.9rem; }
+  .receb-row-sub { font-size: 0.78rem; color: var(--ink-soft); margin-top: 2px; }
+  .receb-row-meta { font-size: 0.8rem; color: var(--ink-soft); text-align: right; }
+  .receb-row-detail { display: none; padding: 0 14px 14px; }
+  .receb-row-detail.open { display: block; }
+  .receb-row-detail table { margin-top: 0; }
+  .receb-row-detail th, .receb-row-detail td { font-size: 0.82rem; }
+  .empty-hint { color: var(--ink-soft); font-size: 0.85rem; padding: 10px 0; }
+
+  .overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(42, 36, 32, 0.45);
+    align-items: center; justify-content: center;
+    z-index: 10;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 24px;
+    width: 320px;
+  }
+  .modal h3 { margin-top: 0; }
+  .modal .row-actions { justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<div id="view-login" class="card">
+  <h2>Mini ERP — Sonia Michel Semijoias</h2>
+  <div class="field">
+    <label for="login-username">Usuário</label>
+    <input id="login-username" type="text" autocomplete="username">
+  </div>
+  <div class="field">
+    <label for="login-senha">Senha</label>
+    <input id="login-senha" type="password" autocomplete="current-password">
+  </div>
+  <button class="btn-primary" style="width:100%" onclick="fazerLogin()">Entrar</button>
+  <div id="login-msg" class="msg"></div>
+</div>
+
+<div id="view-app">
+  <header>
+    <h1>Mini ERP — Sonia Michel Semijoias</h1>
+    <div class="user-info">
+      <span id="user-nome"></span>
+      <button class="link" onclick="abrirTrocarSenha()">Trocar senha</button>
+      <button class="link" onclick="logout()">Sair</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <nav class="modules">
+      <button class="active">Recebimento</button>
+      <button disabled title="Em breve">Venda de Exposição</button>
+      <button disabled title="Em breve">Dashboard</button>
+    </nav>
+
+    <div class="card">
+      <h3 style="margin-top:0">Novo Recebimento</h3>
+      <div class="grid-header">
+        <div class="field">
+          <label for="r-fornecedor">Fornecedor</label>
+          <input id="r-fornecedor" type="text" value="LBF">
+        </div>
+        <div class="field">
+          <label for="r-documento">Nº do Documento</label>
+          <input id="r-documento" type="text" placeholder="ex: 000072995">
+        </div>
+        <div class="field">
+          <label for="r-data">Data</label>
+          <input id="r-data" type="date">
+        </div>
+      </div>
+      <div class="field">
+        <label for="r-observacao">Observação (opcional)</label>
+        <input id="r-observacao" type="text">
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th class="col-sku">SKU</th>
+            <th class="col-desc">Descrição</th>
+            <th class="col-qtd">Qtd</th>
+            <th class="col-varejo">Valor Varejo</th>
+            <th class="col-pix">Valor Pix</th>
+            <th class="col-look">Look Venda</th>
+            <th class="col-rm"></th>
+          </tr>
+        </thead>
+        <tbody id="itens-body"></tbody>
+      </table>
+
+      <div class="row-actions">
+        <button class="btn-secondary" onclick="adicionarItem()">+ Adicionar item</button>
+        <button class="btn-primary" onclick="salvarRecebimento()">Salvar Recebimento</button>
+      </div>
+      <div id="receb-msg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="margin:0">Recebimentos Registrados</h3>
+        <button class="btn-secondary" onclick="carregarRecebimentos()">Atualizar</button>
+      </div>
+      <div id="lista-recebimentos"></div>
+    </div>
+  </div>
+</div>
+
+<div id="overlay-trocar-senha" class="overlay">
+  <div class="modal">
+    <h3>Trocar senha</h3>
+    <div class="field">
+      <label for="ts-atual">Senha atual</label>
+      <input id="ts-atual" type="password" autocomplete="current-password">
+    </div>
+    <div class="field">
+      <label for="ts-nova">Nova senha</label>
+      <input id="ts-nova" type="password" autocomplete="new-password">
+    </div>
+    <div class="field">
+      <label for="ts-confirmar">Confirmar nova senha</label>
+      <input id="ts-confirmar" type="password" autocomplete="new-password">
+    </div>
+    <div id="ts-msg" class="msg"></div>
+    <div class="row-actions">
+      <button class="btn-secondary" onclick="fecharTrocarSenha()">Cancelar</button>
+      <button class="btn-primary" onclick="trocarSenha()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const AUTH_LOGIN_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/auth-login";
+const RECEBIMENTO_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/recebimento";
+const TROCAR_SENHA_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/auth-trocar-senha";
+const RECEBIMENTOS_LIST_URL = "https://antoniomicheltecnologias.app.n8n.cloud/webhook/recebimentos";
+
+function getToken() { return localStorage.getItem('sonia_erp_token'); }
+function getNome() { return localStorage.getItem('sonia_erp_nome'); }
+
+function showApp() {
+  document.getElementById('view-login').style.display = 'none';
+  document.getElementById('view-app').style.display = 'block';
+  document.getElementById('user-nome').textContent = getNome() || '';
+  document.getElementById('r-data').valueAsDate = new Date();
+  if (document.getElementById('itens-body').children.length === 0) adicionarItem();
+  carregarRecebimentos();
+}
+
+function formatarData(isoDate) {
+  const d = new Date(isoDate);
+  return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+}
+
+function formatarMoeda(valor) {
+  return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function toggleRecebimento(id) {
+  const el = document.getElementById('detalhe-' + id);
+  el.classList.toggle('open');
+}
+
+async function carregarRecebimentos() {
+  const container = document.getElementById('lista-recebimentos');
+  container.innerHTML = '<div class="empty-hint">Carregando...</div>';
+
+  try {
+    const resp = await fetch(RECEBIMENTOS_LIST_URL, {
+      headers: { 'Authorization': 'Bearer ' + getToken() }
+    });
+
+    if (resp.status === 401) {
+      logout();
+      return;
+    }
+
+    const result = await resp.json();
+    if (!result.success) {
+      container.innerHTML = '<div class="empty-hint">' + (result.error || 'Erro ao carregar recebimentos.') + '</div>';
+      return;
+    }
+
+    const recebimentos = result.recebimentos || [];
+    if (recebimentos.length === 0) {
+      container.innerHTML = '<div class="empty-hint">Nenhum recebimento registrado ainda.</div>';
+      return;
+    }
+
+    container.innerHTML = recebimentos.map(r => {
+      const itens = r.itens || [];
+      const totalPecas = itens.reduce((acc, it) => acc + it.quantidade, 0);
+      const itensHtml = itens.map(it => `
+        <tr>
+          <td>${it.sku}</td>
+          <td>${it.descricao || ''}</td>
+          <td>${it.quantidade}</td>
+          <td>R$ ${formatarMoeda(it.valor_varejo)}</td>
+          <td>R$ ${formatarMoeda(it.valor_pix)}</td>
+          <td>${it.look_venda || '—'}</td>
+        </tr>
+      `).join('');
+
+      return `
+        <div class="receb-row">
+          <div class="receb-row-header" onclick="toggleRecebimento(${r.id})">
+            <div>
+              <div class="receb-row-title">#${r.id} — ${r.fornecedor} — Doc. ${r.numero_documento}</div>
+              <div class="receb-row-sub">${formatarData(r.data)} · ${itens.length} SKUs · ${totalPecas} peças${r.criado_por ? ' · por ' + r.criado_por : ''}</div>
+            </div>
+            <div class="receb-row-meta">${r.observacao ? r.observacao : ''}</div>
+          </div>
+          <div class="receb-row-detail" id="detalhe-${r.id}">
+            <table>
+              <thead>
+                <tr><th>SKU</th><th>Descrição</th><th>Qtd</th><th>Varejo</th><th>Pix</th><th>Look</th></tr>
+              </thead>
+              <tbody>${itensHtml}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = '<div class="empty-hint">Erro de conexão: ' + e.message + '</div>';
+  }
+}
+
+function showLogin() {
+  document.getElementById('view-login').style.display = 'block';
+  document.getElementById('view-app').style.display = 'none';
+}
+
+async function fazerLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const msg = document.getElementById('login-msg');
+  msg.className = 'msg';
+  msg.textContent = '';
+
+  if (!username || !senha) {
+    msg.className = 'msg err';
+    msg.textContent = 'Preencha usuário e senha.';
+    return;
+  }
+
+  try {
+    const resp = await fetch(AUTH_LOGIN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, senha })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      localStorage.setItem('sonia_erp_token', data.token);
+      localStorage.setItem('sonia_erp_nome', data.nome);
+      showApp();
+    } else {
+      msg.className = 'msg err';
+      msg.textContent = data.error || 'Usuário ou senha inválidos.';
+    }
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'Erro de conexão: ' + e.message;
+  }
+}
+
+function logout() {
+  localStorage.removeItem('sonia_erp_token');
+  localStorage.removeItem('sonia_erp_nome');
+  showLogin();
+}
+
+function adicionarItem() {
+  const tbody = document.getElementById('itens-body');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="i-sku"></td>
+    <td><input type="text" class="i-descricao"></td>
+    <td><input type="number" class="i-quantidade" value="1" min="1"></td>
+    <td><input type="number" class="i-varejo" step="0.01"></td>
+    <td><input type="number" class="i-pix" step="0.01"></td>
+    <td><input type="text" class="i-look"></td>
+    <td class="col-rm"><button class="btn-remove" onclick="this.closest('tr').remove()">&times;</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function coletarItens() {
+  const rows = document.querySelectorAll('#itens-body tr');
+  const itens = [];
+  for (const row of rows) {
+    const sku = row.querySelector('.i-sku').value.trim();
+    if (!sku) continue;
+    itens.push({
+      sku,
+      descricao: row.querySelector('.i-descricao').value.trim(),
+      quantidade: parseInt(row.querySelector('.i-quantidade').value || '0', 10),
+      valor_varejo: parseFloat(row.querySelector('.i-varejo').value || '0'),
+      valor_pix: parseFloat(row.querySelector('.i-pix').value || '0'),
+      look_venda: row.querySelector('.i-look').value.trim() || null
+    });
+  }
+  return itens;
+}
+
+async function salvarRecebimento() {
+  const msg = document.getElementById('receb-msg');
+  msg.className = 'msg';
+  msg.textContent = '';
+
+  const fornecedor = document.getElementById('r-fornecedor').value.trim();
+  const numero_documento = document.getElementById('r-documento').value.trim();
+  const data = document.getElementById('r-data').value;
+  const observacao = document.getElementById('r-observacao').value.trim();
+  const itens = coletarItens();
+
+  if (!fornecedor || !numero_documento || !data || itens.length === 0) {
+    msg.className = 'msg err';
+    msg.textContent = 'Preencha fornecedor, documento, data e ao menos um item com SKU.';
+    return;
+  }
+
+  try {
+    const resp = await fetch(RECEBIMENTO_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + getToken()
+      },
+      body: JSON.stringify({ fornecedor, numero_documento, data, observacao, itens })
+    });
+
+    if (resp.status === 401) {
+      logout();
+      return;
+    }
+
+    const result = await resp.json();
+    if (result.success) {
+      msg.className = 'msg ok';
+      msg.textContent = `Recebimento #${result.recebimento_id} salvo — ${result.itens_inseridos} itens, ${result.movimentos_inseridos} movimentos de entrada.`;
+      document.getElementById('r-documento').value = '';
+      document.getElementById('r-observacao').value = '';
+      document.getElementById('itens-body').innerHTML = '';
+      adicionarItem();
+      carregarRecebimentos();
+    } else {
+      msg.className = 'msg err';
+      msg.textContent = result.error || 'Erro ao salvar recebimento.';
+    }
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'Erro de conexão: ' + e.message;
+  }
+}
+
+function abrirTrocarSenha() {
+  document.getElementById('ts-atual').value = '';
+  document.getElementById('ts-nova').value = '';
+  document.getElementById('ts-confirmar').value = '';
+  document.getElementById('ts-msg').className = 'msg';
+  document.getElementById('ts-msg').textContent = '';
+  document.getElementById('overlay-trocar-senha').classList.add('open');
+}
+
+function fecharTrocarSenha() {
+  document.getElementById('overlay-trocar-senha').classList.remove('open');
+}
+
+async function trocarSenha() {
+  const msg = document.getElementById('ts-msg');
+  msg.className = 'msg';
+  msg.textContent = '';
+
+  const senha_atual = document.getElementById('ts-atual').value;
+  const senha_nova = document.getElementById('ts-nova').value;
+  const senha_confirmar = document.getElementById('ts-confirmar').value;
+
+  if (!senha_atual || !senha_nova) {
+    msg.className = 'msg err';
+    msg.textContent = 'Preencha a senha atual e a nova senha.';
+    return;
+  }
+  if (senha_nova !== senha_confirmar) {
+    msg.className = 'msg err';
+    msg.textContent = 'A confirmação não bate com a nova senha.';
+    return;
+  }
+
+  try {
+    const resp = await fetch(TROCAR_SENHA_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + getToken()
+      },
+      body: JSON.stringify({ senha_atual, senha_nova })
+    });
+
+    if (resp.status === 401) {
+      logout();
+      return;
+    }
+
+    const result = await resp.json();
+    if (result.success) {
+      msg.className = 'msg ok';
+      msg.textContent = 'Senha atualizada com sucesso.';
+      setTimeout(fecharTrocarSenha, 1200);
+    } else {
+      msg.className = 'msg err';
+      msg.textContent = result.error || 'Erro ao trocar senha.';
+    }
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'Erro de conexão: ' + e.message;
+  }
+}
+
+document.getElementById('login-senha').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') fazerLogin();
+});
+
+if (getToken()) {
+  showApp();
+} else {
+  showLogin();
+}
+</script>
+
+</body>
+</html>
